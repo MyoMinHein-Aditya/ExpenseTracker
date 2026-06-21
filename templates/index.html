@@ -25,7 +25,16 @@
   .header-right{display:flex;gap:10px;align-items:center;}
   .month-badge{background:var(--surface);border:1px solid var(--border);
     border-radius:50px;padding:6px 16px;font-size:13px;color:var(--muted);
-    font-family:'Space Mono',monospace;}
+    font-family:'Space Mono',monospace;white-space:nowrap;}
+  .month-tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .month-tab{background:transparent;border:1px solid var(--border);
+    color:var(--muted);border-radius:50px;padding:6px 12px;
+    font-size:13px;font-family:'Space Mono',monospace;cursor:pointer;
+    transition:all .15s;user-select:none;}
+  .month-tab:hover{border-color:var(--accent);color:var(--text);}
+  .month-tab.active{border-color:var(--accent);color:var(--accent);
+    background:var(--accent-dim);}
+
   .export-btn{background:var(--surface);border:1px solid var(--border);
     border-radius:50px;padding:6px 16px;font-size:13px;color:var(--accent);
     font-family:'Space Mono',monospace;cursor:pointer;transition:all .2s;
@@ -168,8 +177,10 @@
   <div class="logo">paisa<span>track</span></div>
   <div class="header-right">
     <div class="month-badge" id="monthBadge"></div>
+    <div class="month-tabs" id="monthTabs"></div>
     <a class="export-btn" id="exportBtn" href="#" onclick="exportExcel(event)">⬇ Export Excel</a>
   </div>
+
 </div>
 
 <div class="balance-card">
@@ -189,8 +200,13 @@
     <label>How much (₹)</label>
     <input type="number" id="expenseAmt" placeholder="0" min="1" />
   </div>
+  <div class="input-wrap">
+    <label>Date</label>
+    <input type="date" id="expenseDate" />
+  </div>
   <button class="add-expense-btn" onclick="addExpense()" title="Add Expense">−</button>
 </div>
+
 
 <!-- Charts -->
 <div class="charts-grid">
@@ -228,6 +244,11 @@
       <input type="number" id="addAmt" placeholder="45000" min="1" style="width:100%" />
     </div>
     <div class="modal-input-wrap">
+      <label>Date</label>
+      <input type="date" id="addDate" style="width:100%" />
+    </div>
+
+    <div class="modal-input-wrap">
       <label>Note (optional)</label>
       <input type="text" id="addNote" placeholder="Salary, Freelance…" style="width:100%" />
     </div>
@@ -242,10 +263,12 @@
 
 <script>
   const fmt = n => '₹' + Number(n).toLocaleString('en-IN', {maximumFractionDigits:2});
-  const currentMonth = new Date().toISOString().slice(0,7);
+  let currentMonth = new Date().toISOString().slice(0,7);
+  let months = [];
 
   document.getElementById('monthBadge').textContent =
     new Date().toLocaleDateString('en-IN', {month:'long', year:'numeric'});
+
 
   function showToast(msg, type='success') {
     const t = document.getElementById('toast');
@@ -253,8 +276,27 @@
     setTimeout(() => t.classList.remove('show'), 2800);
   }
 
+  async function fetchMonths() {
+    const d = await fetch('/api/months').then(r => r.json());
+    return d.months || [];
+  }
+
+  function monthLabel(ym) {
+    try {
+      return datetimeToLabel(ym);
+    } catch {
+      return ym;
+    }
+  }
+
+  function datetimeToLabel(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  }
+
   async function loadBalance() {
     const d = await fetch('/api/balance').then(r=>r.json());
+
     const el = document.getElementById('balanceDisplay');
     el.textContent = fmt(d.balance);
     el.classList.add('flash');
@@ -299,31 +341,66 @@
 
   function refresh() { loadBalance(); loadTransactions(); loadCharts(); }
 
+  async function renderMonthTabs() {
+    const monthTabsEl = document.getElementById('monthTabs');
+    const badgeEl = document.getElementById('monthBadge');
+
+    months = await fetchMonths();
+    if (!months.length) months = [currentMonth];
+
+    // Ensure currentMonth exists in list; if not, fall back to newest.
+    if (!months.includes(currentMonth)) currentMonth = months[0];
+
+    badgeEl.textContent = monthLabel(currentMonth);
+    monthTabsEl.innerHTML = months.map(ym => {
+      const active = ym === currentMonth ? 'active' : '';
+      return `<div class="month-tab ${active}" onclick="selectMonth('${ym}')">${ym}</div>`;
+    }).join('');
+  }
+
+  function selectMonth(ym) {
+    currentMonth = ym;
+    // update badge immediately for snappy UX
+    document.getElementById('monthBadge').textContent = monthLabel(currentMonth);
+    // update tab active state
+    document.querySelectorAll('.month-tab').forEach(el => {
+      el.classList.toggle('active', el.textContent === ym);
+    });
+    refresh();
+  }
+
+
   async function addMoney() {
     const amount = parseFloat(document.getElementById('addAmt').value);
     const note = document.getElementById('addNote').value || 'Added money';
+    const date = document.getElementById('addDate').value; // YYYY-MM-DD (optional)
     if (!amount || amount <= 0) { showToast('Enter a valid amount', 'error'); return; }
     const r = await fetch('/api/add-money', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({amount, note})
+      body: JSON.stringify({amount, note, date})
     });
+
     if (r.ok) {
       closeModal(); refresh();
       showToast(`${fmt(amount)} added 🎉`);
       document.getElementById('addAmt').value = '';
       document.getElementById('addNote').value = '';
+      document.getElementById('addDate').value = '';
     }
   }
+
 
   async function addExpense() {
     const description = document.getElementById('expenseDesc').value.trim();
     const amount = parseFloat(document.getElementById('expenseAmt').value);
+    const date = document.getElementById('expenseDate').value; // YYYY-MM-DD (optional)
     if (!description) { showToast('Enter where you spent it', 'error'); return; }
     if (!amount || amount <= 0) { showToast('Enter a valid amount', 'error'); return; }
     const r = await fetch('/api/add-expense', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({description, amount})
+      body: JSON.stringify({description, amount, date})
     });
+
     const d = await r.json();
     if (r.ok) {
       document.getElementById('expenseDesc').value = '';
@@ -346,10 +423,12 @@
     showToast('Downloading Excel…');
   }
 
+
   function openModal() {
     document.getElementById('overlay').classList.add('show');
     setTimeout(() => document.getElementById('addAmt').focus(), 150);
   }
+
   function closeModal(e) {
     if (!e || e.target.id === 'overlay')
       document.getElementById('overlay').classList.remove('show');
@@ -361,7 +440,19 @@
   document.getElementById('addNote').addEventListener('keydown', e => { if(e.key==='Enter') addMoney(); });
   document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
 
-  refresh();
+  // Set default dates to today (so UI feels instant)
+  (function setDefaultDates() {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const expenseDateEl = document.getElementById('expenseDate');
+    const addDateEl = document.getElementById('addDate');
+    if (expenseDateEl && !expenseDateEl.value) expenseDateEl.value = today;
+    if (addDateEl && !addDateEl.value) addDateEl.value = today;
+  })();
+
+  // Initial load: tabs first (so current month is selected correctly), then refresh.
+  renderMonthTabs().then(refresh);
 </script>
+
 </body>
 </html>
+

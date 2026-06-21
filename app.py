@@ -35,36 +35,69 @@ def get_balance():
 
 @app.route("/api/add-money", methods=["POST"])
 def add_money():
-    data = request.json
+    data = request.json or {}
     amount = float(data.get("amount", 0))
-    note = data.get("note", "Added money")
+    note = (data.get("note") or "Added money").strip() or "Added money"
+
     if amount <= 0:
         return jsonify({"error": "Invalid amount"}), 400
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Optional: accept `date` (YYYY-MM-DD) from client
+    date_str = (data.get("date") or "").strip()
+    created_at = None
+    if date_str:
+        try:
+            created_at = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return jsonify({"error": "Invalid date"}), 400
+
+    if not created_at:
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     with get_db() as conn:
         conn.execute("UPDATE balance SET amount = amount + ? WHERE id=1", (amount,))
-        conn.execute("INSERT INTO transactions (description, amount, type, created_at) VALUES (?, ?, 'credit', ?)", (note, amount, now))
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, created_at) VALUES (?, ?, 'credit', ?)",
+            (note, amount, created_at),
+        )
         conn.commit()
         row = conn.execute("SELECT amount FROM balance WHERE id=1").fetchone()
     return jsonify({"balance": row["amount"]})
 
+
 @app.route("/api/add-expense", methods=["POST"])
 def add_expense():
-    data = request.json
-    description = data.get("description", "").strip()
+    data = request.json or {}
+    description = (data.get("description", "") or "").strip()
     amount = float(data.get("amount", 0))
     if not description or amount <= 0:
         return jsonify({"error": "Invalid data"}), 400
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Optional: accept `date` (YYYY-MM-DD) from client
+    date_str = (data.get("date") or "").strip()
+    created_at = None
+    if date_str:
+        try:
+            created_at = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return jsonify({"error": "Invalid date"}), 400
+
+    if not created_at:
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     with get_db() as conn:
         bal = conn.execute("SELECT amount FROM balance WHERE id=1").fetchone()["amount"]
         if amount > bal:
             return jsonify({"error": "Insufficient balance"}), 400
         conn.execute("UPDATE balance SET amount = amount - ? WHERE id=1", (amount,))
-        conn.execute("INSERT INTO transactions (description, amount, type, created_at) VALUES (?, ?, 'debit', ?)", (description, amount, now))
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, created_at) VALUES (?, ?, 'debit', ?)",
+            (description, amount, created_at),
+        )
         conn.commit()
         row = conn.execute("SELECT amount FROM balance WHERE id=1").fetchone()
     return jsonify({"balance": row["amount"]})
+
 
 @app.route("/api/transactions")
 def get_transactions():
@@ -77,6 +110,25 @@ def get_transactions():
         total_spent = sum(t["amount"] for t in txns if t["type"] == "debit")
         total_added = sum(t["amount"] for t in txns if t["type"] == "credit")
     return jsonify({"transactions": txns, "total_spent": total_spent, "total_added": total_added})
+
+
+@app.route("/api/months")
+def get_months():
+    """Return available months (YYYY-MM) sorted newest -> oldest."""
+    with get_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT strftime('%Y-%m', created_at) AS month
+            FROM transactions
+            ORDER BY month DESC
+            """
+        ).fetchall()
+    months = [r["month"] for r in rows if r["month"]]
+    # If DB is empty, return current month only (so UI still works)
+    if not months:
+        months = [datetime.now().strftime("%Y-%m")]
+    return jsonify({"months": months})
+
 
 @app.route("/api/delete/<int:txn_id>", methods=["DELETE"])
 def delete_transaction(txn_id):
