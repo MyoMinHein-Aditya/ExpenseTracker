@@ -54,11 +54,36 @@
   .balance-amount{font-size:44px;font-weight:800;color:var(--accent);
     letter-spacing:-2px;line-height:1;transition:all .4s ease;}
   .balance-amount.flash{animation:flash .4s ease;}
+  .balance-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
   .add-money-btn{background:var(--accent);color:#0e0e0e;border:none;
     border-radius:12px;padding:14px 24px;font-size:15px;font-weight:700;
     font-family:'Baloo 2',cursive;cursor:pointer;transition:all .2s ease;white-space:nowrap;}
   .add-money-btn:hover{background:#d4ff52;transform:translateY(-2px);box-shadow:0 8px 24px #c8f04a33;}
   .add-money-btn:active{transform:translateY(0);}
+  .show-balance-btn{background:transparent;border:1px solid var(--border);
+    color:var(--text);border-radius:12px;padding:14px 18px;font-size:14px;
+    font-family:'Baloo 2',cursive;cursor:pointer;transition:all .2s ease;white-space:nowrap;}
+  .show-balance-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+
+  /* Month Summary */
+  .month-summary{background:var(--surface);border:1px solid var(--border-bright);
+    border-radius:var(--radius);padding:20px 24px;display:flex;
+    justify-content:space-around;align-items:center;margin-bottom:16px;
+    opacity:0;animation:fadeUp .5s ease .15s forwards;}
+  .ms-item{text-align:center;flex:1;}
+  .ms-label{font-size:11px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:1.2px;margin-bottom:6px;font-family:'Space Mono',monospace;}
+  .ms-value{font-size:26px;font-weight:800;letter-spacing:-1px;font-family:'Space Mono',monospace;}
+  .ms-value.ms-added{color:var(--green);}
+  .ms-value.ms-spent{color:var(--red);}
+  .ms-value.ms-net{color:var(--accent);}
+  .ms-divider{width:1px;height:40px;background:var(--border);flex-shrink:0;}
+  @media(max-width:600px){
+    .month-summary{flex-wrap:wrap;gap:12px;padding:16px;}
+    .ms-item{flex:1 1 45%;}
+    .ms-value{font-size:22px;}
+    .ms-divider{display:none;}
+  }
 
   /* Expense Input */
   .expense-row{display:grid;grid-template-columns:1fr 180px auto;gap:12px;
@@ -167,7 +192,8 @@
     .chart-card.wide{grid-column:auto;}
     .expense-row{grid-template-columns:1fr 130px auto;}
     .balance-card{flex-direction:column;gap:20px;text-align:center;}
-    .add-money-btn{width:100%;}
+    .balance-actions{width:100%;justify-content:center;}
+    .add-money-btn,.show-balance-btn{width:100%;}
   }
 </style>
 </head>
@@ -188,7 +214,28 @@
     <div class="balance-label">Current Balance</div>
     <div class="balance-amount" id="balanceDisplay">₹0</div>
   </div>
-  <button class="add-money-btn" onclick="openModal()">+ Add Money</button>
+  <div class="balance-actions">
+    <button class="show-balance-btn" onclick="showCurrentBalance()">Show Balance</button>
+    <button class="add-money-btn" onclick="openModal()">+ Add Money</button>
+  </div>
+</div>
+
+<!-- Month Summary -->
+<div class="month-summary">
+  <div class="ms-item">
+    <div class="ms-label">Total Added</div>
+    <div class="ms-value ms-added" id="msAdded">₹0</div>
+  </div>
+  <div class="ms-divider"></div>
+  <div class="ms-item">
+    <div class="ms-label">Total Spent</div>
+    <div class="ms-value ms-spent" id="msSpent">₹0</div>
+  </div>
+  <div class="ms-divider"></div>
+  <div class="ms-item">
+    <div class="ms-label">Net Change</div>
+    <div class="ms-value ms-net" id="msNet">₹0</div>
+  </div>
 </div>
 
 <div class="expense-row">
@@ -303,8 +350,21 @@
     setTimeout(() => el.classList.remove('flash'), 400);
   }
 
+  async function showCurrentBalance() {
+    await loadBalance();
+    showToast('Current balance refreshed');
+  }
+
   async function loadTransactions() {
     const d = await fetch(`/api/transactions?month=${currentMonth}`).then(r=>r.json());
+    // Update month summary card
+    document.getElementById('msAdded').textContent = '+' + fmt(d.total_added);
+    document.getElementById('msSpent').textContent = '−' + fmt(d.total_spent);
+    const net = d.total_added - d.total_spent;
+    const netEl = document.getElementById('msNet');
+    netEl.textContent = (net >= 0 ? '+' : '−') + fmt(Math.abs(net));
+    netEl.style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+    // Update transaction list header
     document.getElementById('totalSpent').textContent = '−' + fmt(d.total_spent);
     document.getElementById('totalAdded').textContent = '+' + fmt(d.total_added);
     const list = document.getElementById('txnList');
