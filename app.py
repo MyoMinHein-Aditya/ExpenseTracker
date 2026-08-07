@@ -148,12 +148,12 @@ def delete_transaction(txn_id):
 # ── CHARTS ──────────────────────────────────────────────────────────────────
 
 def chart_style(fig, ax):
-    """Apply dark theme to any chart."""
-    BG = "#0e0e0e"
+    """Apply a deep ultra-violet chart style with soft apricot accents."""
+    BG = "#110E17"
     fig.patch.set_facecolor(BG)
-    ax.set_facecolor("#1a1a1a")
-    ax.tick_params(colors="#888888", labelsize=8)
-    ax.spines[:].set_color("#2e2e2e")
+    ax.set_facecolor("#110E17")
+    ax.tick_params(colors="#2D2838", labelsize=8)
+    ax.spines[:].set_color("#2D2838")
     for spine in ax.spines.values():
         spine.set_linewidth(0.5)
 
@@ -186,15 +186,15 @@ def chart_daily():
     fig, ax = plt.subplots(figsize=(7, 2.6))
     chart_style(fig, ax)
 
-    colors = ["#c8f04a" if v == max(values) and v > 0 else "#ff5f5f" if v > 0 else "#2e2e2e" for v in values]
+    colors = ["#FFD6A5" if v == max(values) and v > 0 else "#6A00F4" if v > 0 else "#E5E5E6" for v in values]
     bars = ax.bar(days, values, color=colors, width=0.7, zorder=3)
     ax.set_xlim(0.5, days_in_month + 0.5)
-    ax.set_xlabel("Day of Month", color="#888", fontsize=8, labelpad=6)
-    ax.set_ylabel("₹ Spent", color="#888", fontsize=8, labelpad=6)
+    ax.set_xlabel("Day of Month", color="#F7F3EE", fontsize=8, labelpad=6)
+    ax.set_ylabel("₹ Spent", color="#F7F3EE", fontsize=8, labelpad=6)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"₹{x/1000:.0f}k" if x >= 1000 else f"₹{x:.0f}"))
-    ax.grid(axis="y", color="#2e2e2e", linewidth=0.5, zorder=0)
+    ax.grid(axis="y", color="#c98b47", linewidth=0.5, zorder=0)
     ax.set_title("Daily Spending — " + datetime.strptime(month, "%Y-%m").strftime("%B %Y"),
-                 color="#f0f0f0", fontsize=10, pad=10, fontweight="bold")
+                 color="#F7F3EE", fontsize=10, pad=10, fontweight="bold")
     plt.tight_layout(pad=1.2)
 
     buf = io.BytesIO()
@@ -245,15 +245,15 @@ def chart_monthly():
     fig, ax = plt.subplots(figsize=(7, 2.6))
     chart_style(fig, ax)
 
-    ax.bar(x - w/2, added, w, label="Income",  color="#4affa0", alpha=0.9, zorder=3)
-    ax.bar(x + w/2, spent, w, label="Expenses", color="#ff5f5f", alpha=0.9, zorder=3)
+    ax.bar(x - w/2, added, w, label="Income",  color="#6A00F4", alpha=0.9, zorder=3)
+    ax.bar(x + w/2, spent, w, label="Expenses", color="#FFD6A5", alpha=0.9, zorder=3)
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, color="#888", fontsize=8)
+    ax.set_xticklabels(labels, color="#F7F3EE", fontsize=8)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"₹{v/1000:.0f}k" if v >= 1000 else f"₹{v:.0f}"))
-    ax.grid(axis="y", color="#2e2e2e", linewidth=0.5, zorder=0)
-    ax.legend(fontsize=8, facecolor="#1a1a1a", edgecolor="#2e2e2e",
-              labelcolor="#f0f0f0", loc="upper left")
-    ax.set_title("Monthly Overview (Last 6 Months)", color="#f0f0f0", fontsize=10, pad=10, fontweight="bold")
+    ax.grid(axis="y", color="#2D2838", linewidth=0.5, zorder=0)
+    ax.legend(fontsize=8, facecolor="#110E17", edgecolor="#2D2838",
+              labelcolor="#F7F3EE", loc="upper left")
+    ax.set_title("Monthly Overview (Last 6 Months)", color="#F7F3EE", fontsize=10, pad=10, fontweight="bold")
     plt.tight_layout(pad=1.2)
 
     buf = io.BytesIO()
@@ -282,9 +282,9 @@ def chart_breakdown():
         fig, ax = plt.subplots(figsize=(4, 2.6))
         chart_style(fig, ax)
         ax.text(0.5, 0.5, "No expenses yet", ha="center", va="center",
-                color="#888", fontsize=10, transform=ax.transAxes)
+                color="#F7F3EE", fontsize=10, transform=ax.transAxes)
         ax.axis("off")
-        ax.set_title("Expense Breakdown", color="#f0f0f0", fontsize=10, pad=10, fontweight="bold")
+        ax.set_title("Expense Breakdown", color="#F7F3EE", fontsize=10, pad=10, fontweight="bold")
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=130, bbox_inches="tight", facecolor=fig.get_facecolor())
         buf.seek(0); plt.close(fig)
@@ -292,24 +292,24 @@ def chart_breakdown():
 
     labels = [r["description"] for r in rows]
     values = [r["total"] for r in rows]
-    palette = ["#c8f04a","#ff5f5f","#4affa0","#ff9f40","#36a2eb","#9966ff","#ff6384"]
+    palette = ["#6A00F4", "#FFD6A5", "#00A389", "#D0B3FF", "#E59560"]
 
     fig, ax = plt.subplots(figsize=(4, 2.6))
     chart_style(fig, ax)
     wedges, texts, autotexts = ax.pie(
         values, labels=None, autopct="%1.0f%%",
         colors=palette[:len(values)], startangle=90,
-        wedgeprops=dict(width=0.55, edgecolor="#0e0e0e", linewidth=1.5),
+        wedgeprops=dict(width=0.55, edgecolor="#110E17", linewidth=2),
         pctdistance=0.75
     )
     for at in autotexts:
-        at.set_color("#0e0e0e"); at.set_fontsize(7); at.set_fontweight("bold")
+        at.set_color("#FFFFFF"); at.set_fontsize(7); at.set_fontweight("bold")
 
     ax.legend(wedges, [f"{l[:14]}" for l in labels],
-              fontsize=7, facecolor="#1a1a1a", edgecolor="#2e2e2e",
-              labelcolor="#f0f0f0", loc="center left",
+              fontsize=7, facecolor="#110E17", edgecolor="#2D2838",
+              labelcolor="#F7F3EE", loc="center left",
               bbox_to_anchor=(0.85, 0.5), framealpha=0.9)
-    ax.set_title("Expense Breakdown", color="#f0f0f0", fontsize=10, pad=10, fontweight="bold")
+    ax.set_title("Expense Breakdown", color="#F7F3EE", fontsize=10, pad=10, fontweight="bold")
     plt.tight_layout(pad=0.5)
 
     buf = io.BytesIO()

@@ -1,47 +1,55 @@
-# 💰 PaisaTrack — Personal Expense Tracker
+# 💰 Expense Tracker
 
-A minimal, aesthetic expense tracker in INR (₹) running on localhost.
+A polished personal finance dashboard built with Flask, SQLite, and a modern one-page UI. It helps you track income, expenses, balance, and monthly summaries in INR (₹).
 
 ## Setup & Run
 
 ```bash
-# 1. Install Flask
-pip install flask
+# 1. Create and activate a virtual environment (recommended)
+python -m venv .venv
+.venv\Scripts\activate
 
-# 2. Run the app
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run the app
 python app.py
 
-# 3. Open in browser
+# 4. Open in browser
 # http://localhost:5000
 ```
 
 ## Features
 
-- ✅ **Add Money** — Log income (salary, freelance, etc.)
-- ✅ **Add Expense** — Enter what you spent & it auto-deducts from balance
-- ✅ **Monthly Transactions** — All transactions grouped by current month
-- ✅ **Monthly Totals** — See total spent vs. added this month
-- ✅ **Delete Transactions** — Undo/remove any entry (balance auto-adjusts)
-- ✅ **Keyboard Shortcuts** — Tab + Enter to navigate, Esc to close modal
-- ✅ **Persistent Storage** — SQLite database (`expenses.db` auto-created)
+- ✅ **Add Money** — Record income such as salary, freelance payments, or refunds
+- ✅ **Add Expense** — Enter purchases and automatically deduct them from your balance
+- ✅ **Live Balance** — View your current balance instantly
+- ✅ **Monthly Transactions** — Browse transactions grouped by selected month
+- ✅ **Monthly Totals** — See added income, spent amount, and net change
+- ✅ **Delete Transactions** — Remove entries and auto-adjust the balance
+- ✅ **Charts** — View daily spending, monthly overview, and expense breakdown visuals
+- ✅ **Excel Export** — Export the selected month’s data to Excel
+- ✅ **Persistent Storage** — SQLite database (`expenses.db`) is created automatically
+- ✅ **Keyboard Shortcuts** — Press Enter to submit and Esc to close the modal
 
-## File Structure
+## Project Structure
 
-```
+```text
 expense-tracker/
-├── app.py              # Flask backend
-├── requirements.txt    # Dependencies
-├── expenses.db         # Auto-created on first run
-└── templates/
-    └── index.html      # Frontend
+├── app.py              # Flask backend and chart routes
+├── requirements.txt    # Python dependencies
+├── templates/
+│   └── index.html      # Frontend UI
+├── expenses.db         # Auto-created SQLite database
+└── README.md           # Project documentation
 ```
 
 ## Reset Database
 
-If you want to clear all your transactions and reset your balance to zero, you can run the following command in your terminal while in the project directory:
+To clear all transactions and reset the balance to zero:
 
 ```bash
 python -c "import sqlite3; conn = sqlite3.connect('expenses.db'); conn.execute('DELETE FROM transactions'); conn.execute('UPDATE balance SET amount = 0'); conn.commit(); conn.close(); print('Database cleared successfully.')"
 ```
 
-Alternatively, you can simply delete the `expenses.db` file. The application will automatically recreate an empty database the next time you start it.
+You can also simply delete the `expenses.db` file. The app will recreate an empty database on the next run.

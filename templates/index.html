@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paisa Track</title>
+<title>Expense Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:#0e0e0e; --surface:#1a1a1a; --border:#2e2e2e;
-    --border-bright:#ffffff22; --text:#f0f0f0; --muted:#888;
-    --accent:#c8f04a; --accent-dim:#c8f04a22;
-    --red:#ff5f5f; --red-dim:#ff5f5f18;
-    --green:#4affa0; --green-dim:#4affa018; --radius:16px;
+    --bg:#fff2e4; --surface:#ffe3c2; --border:#c98b47;
+    --border-bright:#6a00f4; --text:#2f1b0c; --muted:#7a4a1d;
+    --accent:#ffd6a5; --accent-dim:#ffd6a533;
+    --apricot:#6a00f4; --apricot-dim:#6a00f426;
+    --red:#ff7a7a; --red-dim:#ff7a7a22;
+    --green:#7adf9d; --green-dim:#7adf9d22; --radius:16px;
   }
   *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:var(--bg);color:var(--text);font-family:'Baloo 2',cursive;
+  body{background:linear-gradient(135deg, #fff2e4 0%, #ffd9b2 100%);color:var(--text);font-family:'Baloo 2',cursive;
     min-height:100vh;padding:32px 24px;max-width:820px;margin:0 auto;}
 
   /* Header */
   .header{display:flex;justify-content:space-between;align-items:center;
     margin-bottom:28px;opacity:0;animation:fadeUp .5s ease forwards;}
   .logo{font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--accent);}
-  .logo span{color:var(--text);}
+  .logo span{color:var(--apricot);}
   .header-right{display:flex;gap:10px;align-items:center;}
   .month-badge{background:var(--surface);border:1px solid var(--border);
     border-radius:50px;padding:6px 16px;font-size:13px;color:var(--muted);
@@ -31,15 +32,15 @@
     color:var(--muted);border-radius:50px;padding:6px 12px;
     font-size:13px;font-family:'Space Mono',monospace;cursor:pointer;
     transition:all .15s;user-select:none;}
-  .month-tab:hover{border-color:var(--accent);color:var(--text);}
-  .month-tab.active{border-color:var(--accent);color:var(--accent);
-    background:var(--accent-dim);}
+  .month-tab:hover{border-color:var(--apricot);color:var(--apricot);}
+  .month-tab.active{border-color:var(--apricot);color:var(--apricot);
+    background:var(--apricot-dim);}
 
   .export-btn{background:var(--surface);border:1px solid var(--border);
-    border-radius:50px;padding:6px 16px;font-size:13px;color:var(--accent);
+    border-radius:50px;padding:6px 16px;font-size:13px;color:var(--apricot);
     font-family:'Space Mono',monospace;cursor:pointer;transition:all .2s;
     text-decoration:none;display:flex;align-items:center;gap:6px;}
-  .export-btn:hover{border-color:var(--accent);background:var(--accent-dim);}
+  .export-btn:hover{border-color:var(--apricot);background:var(--apricot-dim);color:var(--apricot);}
 
   /* Balance */
   .balance-card{background:var(--surface);border:1px solid var(--border-bright);
@@ -48,22 +49,22 @@
     position:relative;overflow:hidden;opacity:0;animation:fadeUp .5s ease .1s forwards;}
   .balance-card::before{content:'';position:absolute;top:-60px;right:-60px;
     width:180px;height:180px;
-    background:radial-gradient(circle,#c8f04a18 0%,transparent 70%);pointer-events:none;}
+    background:radial-gradient(circle,var(--accent-dim) 0%,transparent 70%);pointer-events:none;}
   .balance-label{font-size:13px;color:var(--muted);text-transform:uppercase;
     letter-spacing:1.5px;margin-bottom:8px;font-family:'Space Mono',monospace;}
-  .balance-amount{font-size:44px;font-weight:800;color:var(--accent);
+  .balance-amount{font-size:44px;font-weight:800;color:var(--apricot);
     letter-spacing:-2px;line-height:1;transition:all .4s ease;}
   .balance-amount.flash{animation:flash .4s ease;}
   .balance-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-  .add-money-btn{background:var(--accent);color:#0e0e0e;border:none;
+  .add-money-btn{background:var(--apricot);color:#fff8f0;border:none;
     border-radius:12px;padding:14px 24px;font-size:15px;font-weight:700;
     font-family:'Baloo 2',cursive;cursor:pointer;transition:all .2s ease;white-space:nowrap;}
-  .add-money-btn:hover{background:#d4ff52;transform:translateY(-2px);box-shadow:0 8px 24px #c8f04a33;}
+  .add-money-btn:hover{background:#5a00d9;transform:translateY(-2px);box-shadow:0 8px 24px #6a00f433;}
   .add-money-btn:active{transform:translateY(0);}
-  .show-balance-btn{background:transparent;border:1px solid var(--border);
-    color:var(--text);border-radius:12px;padding:14px 18px;font-size:14px;
+  .show-balance-btn{background:transparent;border:1px solid var(--apricot);
+    color:var(--apricot);border-radius:12px;padding:14px 18px;font-size:14px;
     font-family:'Baloo 2',cursive;cursor:pointer;transition:all .2s ease;white-space:nowrap;}
-  .show-balance-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+  .show-balance-btn:hover{border-color:var(--apricot);color:var(--apricot);background:var(--apricot-dim);}
 
   /* Month Summary */
   .month-summary{background:var(--surface);border:1px solid var(--border-bright);
@@ -96,14 +97,14 @@
     border:1px solid var(--border);border-radius:12px;padding:16px 18px;
     font-size:15px;color:var(--text);font-family:'Baloo 2',cursive;outline:none;
     transition:border .2s ease,box-shadow .2s ease;}
-  input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+  input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--apricot-dim);}
   input[type="number"]{-moz-appearance:textfield;}
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;}
   .add-expense-btn{background:var(--surface);border:1px solid var(--border);
     border-radius:12px;padding:16px 20px;color:var(--text);font-size:20px;
     cursor:pointer;transition:all .2s ease;line-height:1;}
-  .add-expense-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-dim);}
+  .add-expense-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
 
   /* Charts */
   .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;
@@ -131,9 +132,9 @@
   .txn-list::-webkit-scrollbar-track{background:transparent;}
   .txn-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
   .txn-item{display:flex;align-items:center;padding:14px 24px;
-    border-bottom:1px solid #1f1f1f;transition:background .15s ease;animation:fadeIn .3s ease;}
+    border-bottom:1px solid var(--border);transition:background .15s ease;animation:fadeIn .3s ease;}
   .txn-item:last-child{border-bottom:none;}
-  .txn-item:hover{background:#ffffff06;}
+  .txn-item:hover{background:var(--accent-dim);}
   .txn-icon{width:36px;height:36px;border-radius:10px;display:flex;
     align-items:center;justify-content:center;font-size:16px;margin-right:14px;flex-shrink:0;}
   .txn-icon.debit{background:var(--red-dim);}
@@ -151,11 +152,11 @@
   .txn-empty .emoji{font-size:36px;display:block;margin-bottom:12px;}
 
   /* Modal */
-  .overlay{display:flex;position:fixed;inset:0;background:#00000088;
-    backdrop-filter:blur(6px);z-index:100;align-items:center;justify-content:center;
+  .overlay{display:flex;position:fixed;inset:0;background:#f7d7b3e6;
+    z-index:100;align-items:center;justify-content:center;
     opacity:0;pointer-events:none;transition:opacity .2s ease;}
   .overlay.show{opacity:1;pointer-events:all;}
-  .modal{background:var(--surface);border:1px solid var(--border-bright);
+  .modal{background:#fff8f0;border:1px solid var(--apricot);
     border-radius:20px;padding:32px;width:360px;animation:popIn .25s ease;}
   .modal h3{font-size:20px;font-weight:700;margin-bottom:20px;color:var(--accent);}
   .modal-input-wrap{margin-bottom:16px;}
@@ -163,14 +164,14 @@
     text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;
     font-family:'Space Mono',monospace;}
   .modal-btns{display:flex;gap:10px;margin-top:24px;}
-  .btn-confirm{flex:1;background:var(--accent);color:#0e0e0e;border:none;
+  .btn-confirm{flex:1;background:var(--apricot);color:#fff8f0;border:none;
     border-radius:10px;padding:13px;font-size:15px;font-weight:700;
     font-family:'Baloo 2',cursive;cursor:pointer;transition:all .2s;}
-  .btn-confirm:hover{background:#d4ff52;}
-  .btn-cancel{flex:1;background:transparent;color:var(--muted);
-    border:1px solid var(--border);border-radius:10px;padding:13px;
+  .btn-confirm:hover{background:#5a00d9;}
+  .btn-cancel{flex:1;background:transparent;color:var(--apricot);
+    border:1px solid var(--apricot);border-radius:10px;padding:13px;
     font-size:15px;font-family:'Baloo 2',cursive;cursor:pointer;transition:all .2s;}
-  .btn-cancel:hover{border-color:var(--text);color:var(--text);}
+  .btn-cancel:hover{border-color:var(--apricot);color:var(--apricot);background:var(--accent-dim);}
 
   /* Toast */
   .toast{position:fixed;bottom:32px;left:50%;
@@ -185,7 +186,7 @@
   @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes popIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
-  @keyframes flash{0%{color:var(--accent)}50%{color:#fff}100%{color:var(--accent)}}
+  @keyframes flash{0%{color:var(--apricot)}50%{color:#fff8f0}100%{color:var(--apricot)}}
 
   @media(max-width:600px){
     .charts-grid{grid-template-columns:1fr;}
@@ -200,7 +201,7 @@
 <body>
 
 <div class="header">
-  <div class="logo">paisa<span>track</span></div>
+  <div class="logo">expense<span>tracker</span></div>
   <div class="header-right">
     <div class="month-badge" id="monthBadge"></div>
     <div class="month-tabs" id="monthTabs"></div>
