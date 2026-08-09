@@ -8,14 +8,12 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24).hex())  # Needed for session management
-DB = "expenses.db"
+app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24).hex())
+DB = "/tmp/expenses.db" if os.environ.get("VERCEL") else "expenses.db"
 
-# Google Auth Setup
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID_HERE")
 
 class DatabaseManager:
-    """Handles low-level database operations."""
     @staticmethod
     def get_conn():
         conn = sqlite3.connect(DB)
@@ -25,7 +23,6 @@ class DatabaseManager:
     @staticmethod
     def init_db():
         with DatabaseManager.get_conn() as conn:
-            # Users Table
             conn.execute("""CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -33,13 +30,11 @@ class DatabaseManager:
                 password TEXT,
                 google_id TEXT UNIQUE
             )""")
-            # Balance Table scoped by user_id
             conn.execute("""CREATE TABLE IF NOT EXISTS balance (
                 user_id INTEGER PRIMARY KEY,
                 amount REAL NOT NULL DEFAULT 0,
                 FOREIGN KEY(user_id) REFERENCES users(id)
             )""")
-            # Transactions scoped by user_id
             conn.execute("""CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -52,7 +47,6 @@ class DatabaseManager:
             conn.commit()
 
 class UserManager:
-    """Handles User Authentication."""
     
     @staticmethod
     def register_user(name, email, password):
@@ -88,14 +82,12 @@ class UserManager:
             if user:
                 return user["id"]
             
-            # Check if email exists to link, or create new
             existing_email = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
             if existing_email:
                 conn.execute("UPDATE users SET google_id=? WHERE id=?", (google_id, existing_email["id"]))
                 conn.commit()
                 return existing_email["id"]
             
-            # Create New
             cur = conn.cursor()
             cur.execute("""INSERT INTO users (name, email, google_id) 
                            VALUES (?, ?, ?)""", (name, email, google_id))
@@ -117,7 +109,6 @@ class UserManager:
             return None, str(e)
 
 class ExpenseManager:
-    """Handles expenses scoped securely to a specific user_id."""
     def __init__(self, user_id):
         self.user_id = user_id
 
@@ -183,7 +174,6 @@ class ExpenseManager:
             conn.commit()
             return True, self.get_balance()
 
-# ── ROUTES ──────────────────────────────────────────────────────────────────
 
 @app.before_request
 def require_login():
@@ -215,7 +205,6 @@ def logout():
 def dashboard():
     return render_template("index.html")
 
-# ── AUTH API ────────────────────────────────────────────────────────────────
 
 @app.route("/api/auth/register", methods=["POST"])
 def auth_register():
@@ -276,7 +265,6 @@ def auth_google():
     session['user_id'] = user_id
     return jsonify({"success": True})
 
-# ── EXPENSE API ─────────────────────────────────────────────────────────────
 
 @app.route("/api/balance")
 def get_balance():
@@ -355,7 +343,6 @@ def delete_transaction(txn_id):
         return jsonify({"error": result}), 404
     return jsonify({"balance": result})
 
-# ── CHARTS ──────────────────────────────────────────────────────────────────
 
 def chart_style(fig, ax):
     BG = "#110E17"
@@ -514,7 +501,6 @@ def chart_breakdown():
     buf.seek(0); plt.close(fig)
     return send_file(buf, mimetype="image/png")
 
-# ── EXPORT ──────────────────────────────────────────────────────────────────
 
 @app.route("/api/export")
 def export_excel():
