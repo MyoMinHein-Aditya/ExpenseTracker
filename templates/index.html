@@ -280,14 +280,14 @@
     </div>
   </div>
   <div class="txn-list" id="txnList">
-    <div class="txn-empty"><span class="emoji">🪙</span>No transactions yet</div>
+    <div class="txn-empty">No transactions yet</div>
   </div>
 </div>
 
 <!-- Modal -->
 <div class="overlay" id="overlay" onclick="closeModal(event)">
   <div class="modal">
-    <h3>Add Money 💰</h3>
+    <h3>Add Money</h3>
     <div class="modal-input-wrap">
       <label>Amount (₹)</label>
       <input type="number" id="addAmt" placeholder="45000" min="1" style="width:100%" />
@@ -377,7 +377,7 @@
     document.getElementById('totalAdded').textContent = '+' + fmt(d.total_added);
     const list = document.getElementById('txnList');
     if (!d.transactions.length) {
-      list.innerHTML = '<div class="txn-empty"><span class="emoji">🪙</span>No transactions this month</div>';
+      list.innerHTML = '<div class="txn-empty">No transactions this month</div>';
       return;
     }
     list.innerHTML = d.transactions.map(t => {

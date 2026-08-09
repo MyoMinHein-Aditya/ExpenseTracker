@@ -530,5 +530,5 @@ def chart_breakdown():
 
 if __name__ == "__main__":
     DatabaseManager.init_db()
-    print("\n🚀 PaisaTrack Auth version running at http://localhost:5000\n")
+    print("\n PaisaTrack Auth version running at http://localhost:5000\n")
     app.run(debug=True, port=5000)
