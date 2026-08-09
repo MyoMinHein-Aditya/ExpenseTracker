@@ -2,11 +2,8 @@ import os
 import sqlite3
 from datetime import datetime
 import io
-import random
-import string
-import smtplib
-from email.mime.text import MIMEText
 from flask import Flask, request, jsonify, render_template, send_file, session, redirect, url_for
+from werkzeug.security import generate_password_hash, check_password_hash
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
@@ -14,12 +11,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24).hex())  # Needed for session management
 DB = "expenses.db"
 
-# Google Auth Setup (Placeholders for user to configure if needed)
+# Google Auth Setup
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID_HERE")
-
-# Email OTP Setup
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 
 class DatabaseManager:
     """Handles low-level database operations."""
@@ -37,7 +30,7 @@ class DatabaseManager:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 email TEXT UNIQUE,
-                mobile TEXT UNIQUE,
+                password TEXT,
                 google_id TEXT UNIQUE
             )""")
             # Balance Table scoped by user_id
@@ -59,30 +52,54 @@ class DatabaseManager:
             conn.commit()
 
 class UserManager:
-    """Handles User Creation, Authentication, and OTP Logic."""
+    """Handles User Authentication."""
     
     @staticmethod
-    def get_or_create_user(name, email=None, mobile=None, google_id=None):
+    def register_user(name, email, password):
         with DatabaseManager.get_conn() as conn:
-            # Check existing
-            if google_id:
-                user = conn.execute("SELECT id FROM users WHERE google_id=?", (google_id,)).fetchone()
-            elif email:
-                user = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
-            elif mobile:
-                user = conn.execute("SELECT id FROM users WHERE mobile=?", (mobile,)).fetchone()
-            else:
-                return None
+            existing = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+            if existing:
+                return False, "Email already registered"
+                
+            hashed = generate_password_hash(password)
+            cur = conn.cursor()
+            cur.execute("""INSERT INTO users (name, email, password) 
+                           VALUES (?, ?, ?)""", (name, email, hashed))
+            user_id = cur.lastrowid
+            conn.execute("INSERT INTO balance (user_id, amount) VALUES (?, 0)", (user_id,))
+            conn.commit()
+            return True, user_id
             
+    @staticmethod
+    def login_user(email, password):
+        with DatabaseManager.get_conn() as conn:
+            user = conn.execute("SELECT id, password FROM users WHERE email=?", (email,)).fetchone()
+            if not user or not user["password"]:
+                return False, "Invalid email or password"
+            
+            if check_password_hash(user["password"], password):
+                return True, user["id"]
+            return False, "Invalid email or password"
+
+    @staticmethod
+    def get_or_create_google_user(google_id, email, name):
+        with DatabaseManager.get_conn() as conn:
+            user = conn.execute("SELECT id FROM users WHERE google_id=?", (google_id,)).fetchone()
             if user:
                 return user["id"]
             
+            # Check if email exists to link, or create new
+            existing_email = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+            if existing_email:
+                conn.execute("UPDATE users SET google_id=? WHERE id=?", (google_id, existing_email["id"]))
+                conn.commit()
+                return existing_email["id"]
+            
             # Create New
             cur = conn.cursor()
-            cur.execute("""INSERT INTO users (name, email, mobile, google_id) 
-                           VALUES (?, ?, ?, ?)""", (name, email, mobile, google_id))
+            cur.execute("""INSERT INTO users (name, email, google_id) 
+                           VALUES (?, ?, ?)""", (name, email, google_id))
             user_id = cur.lastrowid
-            # Init balance
             conn.execute("INSERT INTO balance (user_id, amount) VALUES (?, 0)", (user_id,))
             conn.commit()
             return user_id
@@ -98,30 +115,6 @@ class UserManager:
             }
         except ValueError:
             return None
-
-    @staticmethod
-    def send_otp(contact_info, is_email=False):
-        otp = ''.join(random.choices(string.digits, k=6))
-        
-        if is_email and SMTP_EMAIL and SMTP_PASSWORD:
-            try:
-                msg = MIMEText(f"Your PaisaTrack OTP is: {otp}")
-                msg['Subject'] = "PaisaTrack Login OTP"
-                msg['From'] = SMTP_EMAIL
-                msg['To'] = contact_info
-                
-                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                    server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                    server.send_message(msg)
-                print(f"Sent OTP {otp} to email {contact_info}")
-            except Exception as e:
-                print(f"Email failed, falling back to simulated OTP. Error: {e}")
-                print(f"\n--- SIMULATED OTP FOR {contact_info}: {otp} ---\n")
-        else:
-            # Simulated OTP (for SMS or unconfigured email)
-            print(f"\n--- SIMULATED OTP FOR {contact_info}: {otp} ---\n")
-            
-        return otp
 
 class ExpenseManager:
     """Handles expenses scoped securely to a specific user_id."""
@@ -194,7 +187,7 @@ class ExpenseManager:
 
 @app.before_request
 def require_login():
-    public_routes = ['/', '/login', '/api/auth/send-otp', '/api/auth/verify-otp', '/api/auth/google', '/static']
+    public_routes = ['/', '/login', '/api/auth/register', '/api/auth/login', '/api/auth/google', '/static']
     if request.path not in public_routes and not request.path.startswith('/static'):
         if 'user_id' not in session:
             if request.path.startswith('/api/'):
@@ -224,46 +217,37 @@ def dashboard():
 
 # ── AUTH API ────────────────────────────────────────────────────────────────
 
-@app.route("/api/auth/send-otp", methods=["POST"])
-def auth_send_otp():
+@app.route("/api/auth/register", methods=["POST"])
+def auth_register():
     data = request.json or {}
     name = data.get("name", "").strip()
-    contact = data.get("contact", "").strip()
-    is_email = "@" in contact
+    email = data.get("email", "").strip()
+    password = data.get("password", "").strip()
     
-    if not contact:
-        return jsonify({"error": "Contact info required"}), 400
+    if not name or not email or not password:
+        return jsonify({"error": "All fields are required"}), 400
         
-    otp = UserManager.send_otp(contact, is_email=is_email)
-    
-    session['pending_otp'] = otp
-    session['pending_contact'] = contact
-    session['pending_name'] = name
-    session['pending_is_email'] = is_email
-    
-    return jsonify({"message": "OTP Sent (check console if email not configured)"})
+    success, result = UserManager.register_user(name, email, password)
+    if not success:
+        return jsonify({"error": result}), 400
+        
+    session['user_id'] = result
+    return jsonify({"success": True})
 
-@app.route("/api/auth/verify-otp", methods=["POST"])
-def auth_verify_otp():
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
     data = request.json or {}
-    user_otp = data.get("otp", "").strip()
+    email = data.get("email", "").strip()
+    password = data.get("password", "").strip()
     
-    if user_otp != session.get('pending_otp'):
-        return jsonify({"error": "Invalid OTP"}), 400
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
         
-    name = session.get('pending_name') or "User"
-    contact = session.get('pending_contact')
-    is_email = session.get('pending_is_email')
-    
-    email = contact if is_email else None
-    mobile = contact if not is_email else None
-    
-    user_id = UserManager.get_or_create_user(name=name, email=email, mobile=mobile)
-    if not user_id:
-        return jsonify({"error": "Could not create user"}), 500
+    success, result = UserManager.login_user(email, password)
+    if not success:
+        return jsonify({"error": result}), 401
         
-    session['user_id'] = user_id
-    session.pop('pending_otp', None)
+    session['user_id'] = result
     return jsonify({"success": True})
 
 @app.route("/api/auth/google", methods=["POST"])
@@ -277,10 +261,10 @@ def auth_google():
     if not user_info:
         return jsonify({"error": "Invalid Google Token"}), 400
         
-    user_id = UserManager.get_or_create_user(
-        name=user_info["name"], 
-        email=user_info["email"], 
-        google_id=user_info["google_id"]
+    user_id = UserManager.get_or_create_google_user(
+        google_id=user_info["google_id"],
+        email=user_info["email"],
+        name=user_info["name"]
     )
     
     if not user_id:
@@ -368,8 +352,7 @@ def delete_transaction(txn_id):
         return jsonify({"error": result}), 404
     return jsonify({"balance": result})
 
-# ── CHARTS (SIMPLIFIED FOR OOP) ─────────────────────────────────────────────
-# Note: For charts to work perfectly we just need to ensure the SQL restricts by user_id
+# ── CHARTS ──────────────────────────────────────────────────────────────────
 
 def chart_style(fig, ax):
     BG = "#110E17"
@@ -527,6 +510,89 @@ def chart_breakdown():
     fig.savefig(buf, format="png", dpi=130, bbox_inches="tight", facecolor=fig.get_facecolor())
     buf.seek(0); plt.close(fig)
     return send_file(buf, mimetype="image/png")
+
+# ── EXPORT ──────────────────────────────────────────────────────────────────
+
+@app.route("/api/export")
+def export_excel():
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    except ImportError:
+        return jsonify({"error": "Run: pip install openpyxl"}), 500
+
+    month = request.args.get("month", datetime.now().strftime("%Y-%m"))
+    mgr = ExpenseManager(session['user_id'])
+    
+    with DatabaseManager.get_conn() as conn:
+        rows = conn.execute("""SELECT description, amount, type, created_at
+            FROM transactions WHERE user_id=? AND strftime('%Y-%m', created_at) = ?
+            ORDER BY created_at ASC""", (session['user_id'], month)).fetchall()
+        txns = [dict(r) for r in rows]
+        bal = mgr.get_balance()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    month_label = datetime.strptime(month, "%Y-%m").strftime("%B %Y")
+    ws.title = month_label
+
+    dark  = PatternFill("solid", fgColor="0E0E0E")
+    dark2 = PatternFill("solid", fgColor="1A1A1A")
+    rowa  = PatternFill("solid", fgColor="111111")
+    rowb  = PatternFill("solid", fgColor="161616")
+    facc  = Font(name="Calibri", bold=True, color="C8F04A", size=14)
+    fhdr  = Font(name="Calibri", bold=True, color="FFFFFF",  size=11)
+    fred  = Font(name="Calibri", bold=True, color="FF5F5F",  size=11)
+    fgrn  = Font(name="Calibri", bold=True, color="4AFFA0",  size=11)
+    fyel  = Font(name="Calibri", bold=True, color="C8F04A",  size=11)
+    fmut  = Font(name="Calibri", color="888888", size=10)
+    fnor  = Font(name="Calibri", color="F0F0F0", size=11)
+    thin  = Border(bottom=Side(style="thin",   color="2E2E2E"))
+    thick = Border(bottom=Side(style="medium", color="C8F04A"))
+    ctr   = Alignment(horizontal="left", vertical="center")
+
+    def sc(cell, val, font, fill, align=ctr):
+        cell.value=val; cell.font=font; cell.fill=fill; cell.alignment=align
+
+    total_spent = sum(t["amount"] for t in txns if t["type"] == "debit")
+    total_added = sum(t["amount"] for t in txns if t["type"] == "credit")
+
+    ws.merge_cells("A1:D1"); sc(ws["A1"], f"PaisaTrack — {month_label}", facc, dark); ws.row_dimensions[1].height=32
+    ws.merge_cells("A2:B2"); sc(ws["A2"], f"Total Added:  ₹{total_added:,.2f}", fgrn, dark)
+    ws.merge_cells("C2:D2"); sc(ws["C2"], f"Total Spent:  ₹{total_spent:,.2f}", fred, dark); ws.row_dimensions[2].height=22
+    ws.merge_cells("A3:D3"); sc(ws["A3"], f"Current Balance:  ₹{bal:,.2f}", fyel, dark); ws.row_dimensions[3].height=22
+    for c in "ABCD": ws[f"{c}4"].fill=dark
+    ws.row_dimensions[4].height=8
+
+    for i,h in enumerate(["Date & Time","Description","Type","Amount (₹)"],1):
+        cell=ws.cell(row=5,column=i,value=h)
+        cell.font=fhdr; cell.fill=dark2; cell.alignment=ctr; cell.border=thick
+    ws.row_dimensions[5].height=22
+
+    for ri, t in enumerate(txns, 6):
+        dt = datetime.strptime(t["created_at"], "%Y-%m-%d %H:%M:%S")
+        debit = t["type"]=="debit"
+        fill = rowa if ri%2==0 else rowb
+        vals = [dt.strftime("%d %b, %I:%M %p"), t["description"],
+                "Expense" if debit else "Added",
+                f"{'−' if debit else '+'} ₹{t['amount']:,.2f}"]
+        fonts = [fmut, fnor, Font(name="Calibri",color="FF5F5F" if debit else "4AFFA0",size=10),
+                 fred if debit else fgrn]
+        for ci,(v,f) in enumerate(zip(vals,fonts),1):
+            cell=ws.cell(row=ri,column=ci,value=v)
+            cell.font=f; cell.fill=fill; cell.border=thin; cell.alignment=ctr
+        ws.row_dimensions[ri].height=20
+
+    ws.column_dimensions["A"].width=22
+    ws.column_dimensions["B"].width=36
+    ws.column_dimensions["C"].width=12
+    ws.column_dimensions["D"].width=20
+    ws.sheet_view.showGridLines=False
+
+    buf=io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(buf, as_attachment=True,
+                     download_name=f"PaisaTrack_{month}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if __name__ == "__main__":
     DatabaseManager.init_db()

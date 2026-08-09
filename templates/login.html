@@ -21,6 +21,10 @@
   .logo{font-size:32px;font-weight:800;letter-spacing:-1px;color:var(--accent);margin-bottom: 24px;}
   .logo span{color:var(--apricot);}
   
+  .tabs {display: flex; margin-bottom: 24px; border-radius: 12px; background: var(--bg); overflow: hidden; border: 1px solid var(--border);}
+  .tab {flex: 1; padding: 12px; font-weight: 700; cursor: pointer; color: var(--muted); transition: all .2s;}
+  .tab.active {background: var(--apricot-dim); color: var(--apricot);}
+  
   .input-group {margin-bottom: 16px; text-align: left;}
   .input-group label {display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-family: 'Space Mono', monospace; margin-bottom: 6px;}
   .input-group input {width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-family: 'Baloo 2', cursive; font-size: 16px;}
@@ -34,105 +38,143 @@
   .divider::before {margin-right: 10px;}
   .divider::after {margin-left: 10px;}
 
-  #otpSection {display: none; margin-top: 24px;}
   .error-msg {color: #ff7a7a; font-size: 14px; margin-top: 10px; display: none;}
+  
+  #registerForm {display: none;}
 </style>
 </head>
 <body>
   <div class="login-card">
     <div class="logo">paisa<span>track</span></div>
     
-    <div id="requestOtpSection">
-      <div class="input-group">
-        <label>Name (For Signup)</label>
-        <input type="text" id="userName" placeholder="Your Name">
-      </div>
-      <div class="input-group">
-        <label>Email OR Mobile Number</label>
-        <input type="text" id="userContact" placeholder="you@email.com or 9876543210">
-      </div>
-      <button class="btn" onclick="sendOtp()">Send OTP</button>
-      <div class="error-msg" id="contactError"></div>
-      
-      <div class="divider">OR</div>
-      
-      <!-- Google Sign In -->
-      <div id="g_id_onload"
-           data-client_id="{{ google_client_id }}"
-           data-context="signin"
-           data-ux_mode="popup"
-           data-callback="handleGoogleLogin"
-           data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin"
-           data-type="standard"
-           data-shape="rectangular"
-           data-theme="outline"
-           data-text="signin_with"
-           data-size="large"
-           data-logo_alignment="left"
-           style="display:flex;justify-content:center;">
-      </div>
+    <div class="tabs">
+      <div class="tab active" id="tabLogin" onclick="switchTab('login')">Sign In</div>
+      <div class="tab" id="tabRegister" onclick="switchTab('register')">Create Account</div>
     </div>
-
-    <div id="otpSection">
-      <p style="color:var(--muted);margin-bottom:16px;">We've sent an OTP to your contact.</p>
+    
+    <!-- LOGIN FORM -->
+    <div id="loginForm">
       <div class="input-group">
-        <label>Enter OTP</label>
-        <input type="text" id="otpCode" placeholder="123456">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@email.com">
       </div>
-      <button class="btn" onclick="verifyOtp()">Verify & Login</button>
-      <div class="error-msg" id="otpError"></div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••">
+      </div>
+      <button class="btn" onclick="login()">Log In</button>
+      <div class="error-msg" id="loginError"></div>
+    </div>
+    
+    <!-- REGISTER FORM -->
+    <div id="registerForm">
+      <div class="input-group">
+        <label>Name</label>
+        <input type="text" id="regName" placeholder="Your Name">
+      </div>
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="you@email.com">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="regPassword" placeholder="••••••••">
+      </div>
+      <button class="btn" onclick="register()">Sign Up</button>
+      <div class="error-msg" id="regError"></div>
+    </div>
+    
+    <div class="divider">OR</div>
+    
+    <!-- Google Sign In -->
+    <div id="g_id_onload"
+         data-client_id="{{ google_client_id }}"
+         data-context="signin"
+         data-ux_mode="popup"
+         data-callback="handleGoogleLogin"
+         data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin"
+         data-type="standard"
+         data-shape="rectangular"
+         data-theme="outline"
+         data-text="signin_with"
+         data-size="large"
+         data-logo_alignment="left"
+         style="display:flex;justify-content:center;">
     </div>
 
   </div>
 
   <script>
-    async function sendOtp() {
-      const name = document.getElementById('userName').value;
-      const contact = document.getElementById('userContact').value;
-      const errorEl = document.getElementById('contactError');
+    function switchTab(tab) {
+      document.getElementById('loginError').style.display = 'none';
+      document.getElementById('regError').style.display = 'none';
       
-      if (!contact) {
-        errorEl.textContent = "Please provide email or mobile.";
+      if (tab === 'login') {
+        document.getElementById('tabLogin').classList.add('active');
+        document.getElementById('tabRegister').classList.remove('active');
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('registerForm').style.display = 'none';
+      } else {
+        document.getElementById('tabRegister').classList.add('active');
+        document.getElementById('tabLogin').classList.remove('active');
+        document.getElementById('registerForm').style.display = 'block';
+        document.getElementById('loginForm').style.display = 'none';
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const errorEl = document.getElementById('loginError');
+      
+      if (!email || !password) {
+        errorEl.textContent = "Please fill in both fields.";
         errorEl.style.display = "block";
         return;
       }
       errorEl.style.display = "none";
       
-      const res = await fetch('/api/auth/send-otp', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ name, contact })
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        document.getElementById('requestOtpSection').style.display = 'none';
-        document.getElementById('otpSection').style.display = 'block';
-      } else {
-        errorEl.textContent = data.error || "Failed to send OTP.";
-        errorEl.style.display = "block";
-      }
-    }
-
-    async function verifyOtp() {
-      const otp = document.getElementById('otpCode').value;
-      const errorEl = document.getElementById('otpError');
-      
-      if (!otp) return;
-      
-      const res = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ otp })
+        body: JSON.stringify({ email, password })
       });
       const data = await res.json();
       
       if (res.ok) {
         window.location.href = '/dashboard';
       } else {
-        errorEl.textContent = data.error || "Invalid OTP.";
+        errorEl.textContent = data.error || "Login failed.";
+        errorEl.style.display = "block";
+      }
+    }
+
+    async function register() {
+      const name = document.getElementById('regName').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+      const errorEl = document.getElementById('regError');
+      
+      if (!name || !email || !password) {
+        errorEl.textContent = "Please fill in all fields.";
+        errorEl.style.display = "block";
+        return;
+      }
+      errorEl.style.display = "none";
+      
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        window.location.href = '/dashboard';
+      } else {
+        errorEl.textContent = data.error || "Registration failed.";
         errorEl.style.display = "block";
       }
     }
@@ -146,8 +188,9 @@
       if (res.ok) {
         window.location.href = '/dashboard';
       } else {
-        document.getElementById('contactError').textContent = "Google login failed.";
-        document.getElementById('contactError').style.display = "block";
+        const errorEl = document.getElementById(document.getElementById('loginForm').style.display === 'none' ? 'regError' : 'loginError');
+        errorEl.textContent = "Google login failed.";
+        errorEl.style.display = "block";
       }
     }
   </script>
