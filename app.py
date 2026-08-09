@@ -112,9 +112,9 @@ class UserManager:
                 "google_id": idinfo['sub'],
                 "email": idinfo['email'],
                 "name": idinfo.get('name', 'Google User')
-            }
-        except ValueError:
-            return None
+            }, None
+        except ValueError as e:
+            return None, str(e)
 
 class ExpenseManager:
     """Handles expenses scoped securely to a specific user_id."""
@@ -257,15 +257,18 @@ def auth_google():
     if not token:
         return jsonify({"error": "Missing token"}), 400
         
-    user_info = UserManager.verify_google_token(token)
+    user_info, err_msg = UserManager.verify_google_token(token)
     if not user_info:
-        return jsonify({"error": "Invalid Google Token"}), 400
+        return jsonify({"error": f"Invalid Google Token: {err_msg}"}), 400
         
-    user_id = UserManager.get_or_create_google_user(
-        google_id=user_info["google_id"],
-        email=user_info["email"],
-        name=user_info["name"]
-    )
+    try:
+        user_id = UserManager.get_or_create_google_user(
+            google_id=user_info["google_id"],
+            email=user_info["email"],
+            name=user_info["name"]
+        )
+    except Exception as e:
+        return jsonify({"error": f"Database Error: {str(e)}"}), 500
     
     if not user_id:
         return jsonify({"error": "Could not create user"}), 500

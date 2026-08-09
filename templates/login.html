@@ -185,11 +185,12 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ token: response.credential })
       });
+      const data = await res.json();
       if (res.ok) {
         window.location.href = '/dashboard';
       } else {
         const errorEl = document.getElementById(document.getElementById('loginForm').style.display === 'none' ? 'regError' : 'loginError');
-        errorEl.textContent = "Google login failed.";
+        errorEl.textContent = "Google login failed: " + (data.error || "Unknown error");
         errorEl.style.display = "block";
       }
     }
