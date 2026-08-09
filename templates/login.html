@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - PaisaTrack</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --bg:#fff2e4; --surface:#ffe3c2; --border:#c98b47;
+    --border-bright:#6a00f4; --text:#2f1b0c; --muted:#7a4a1d;
+    --accent:#ffd6a5; --accent-dim:#ffd6a533;
+    --apricot:#6a00f4; --apricot-dim:#6a00f426;
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:linear-gradient(135deg, #fff2e4 0%, #ffd9b2 100%);color:var(--text);font-family:'Baloo 2',cursive;
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .login-card {background: var(--surface); padding: 40px; border-radius: 20px; border: 1px solid var(--border-bright); width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(106,0,244,0.1);}
+  .logo{font-size:32px;font-weight:800;letter-spacing:-1px;color:var(--accent);margin-bottom: 24px;}
+  .logo span{color:var(--apricot);}
+  
+  .input-group {margin-bottom: 16px; text-align: left;}
+  .input-group label {display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-family: 'Space Mono', monospace; margin-bottom: 6px;}
+  .input-group input {width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-family: 'Baloo 2', cursive; font-size: 16px;}
+  .input-group input:focus {outline: none; border-color: var(--apricot); box-shadow: 0 0 0 3px var(--apricot-dim);}
+  
+  .btn {width: 100%; background: var(--apricot); color: #fff8f0; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all .2s; font-family: 'Baloo 2', cursive; margin-top: 8px;}
+  .btn:hover {background: #5a00d9;}
+  
+  .divider {display: flex; align-items: center; margin: 24px 0; color: var(--muted); font-size: 14px;}
+  .divider::before, .divider::after {content: ''; flex: 1; height: 1px; background: var(--border);}
+  .divider::before {margin-right: 10px;}
+  .divider::after {margin-left: 10px;}
+
+  #otpSection {display: none; margin-top: 24px;}
+  .error-msg {color: #ff7a7a; font-size: 14px; margin-top: 10px; display: none;}
+</style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">paisa<span>track</span></div>
+    
+    <div id="requestOtpSection">
+      <div class="input-group">
+        <label>Name (For Signup)</label>
+        <input type="text" id="userName" placeholder="Your Name">
+      </div>
+      <div class="input-group">
+        <label>Email OR Mobile Number</label>
+        <input type="text" id="userContact" placeholder="you@email.com or 9876543210">
+      </div>
+      <button class="btn" onclick="sendOtp()">Send OTP</button>
+      <div class="error-msg" id="contactError"></div>
+      
+      <div class="divider">OR</div>
+      
+      <!-- Google Sign In -->
+      <div id="g_id_onload"
+           data-client_id="YOUR_GOOGLE_CLIENT_ID_HERE"
+           data-context="signin"
+           data-ux_mode="popup"
+           data-callback="handleGoogleLogin"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+           data-type="standard"
+           data-shape="rectangular"
+           data-theme="outline"
+           data-text="signin_with"
+           data-size="large"
+           data-logo_alignment="left"
+           style="display:flex;justify-content:center;">
+      </div>
+    </div>
+
+    <div id="otpSection">
+      <p style="color:var(--muted);margin-bottom:16px;">We've sent an OTP to your contact.</p>
+      <div class="input-group">
+        <label>Enter OTP</label>
+        <input type="text" id="otpCode" placeholder="123456">
+      </div>
+      <button class="btn" onclick="verifyOtp()">Verify & Login</button>
+      <div class="error-msg" id="otpError"></div>
+    </div>
+
+  </div>
+
+  <script>
+    async function sendOtp() {
+      const name = document.getElementById('userName').value;
+      const contact = document.getElementById('userContact').value;
+      const errorEl = document.getElementById('contactError');
+      
+      if (!contact) {
+        errorEl.textContent = "Please provide email or mobile.";
+        errorEl.style.display = "block";
+        return;
+      }
+      errorEl.style.display = "none";
+      
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, contact })
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        document.getElementById('requestOtpSection').style.display = 'none';
+        document.getElementById('otpSection').style.display = 'block';
+      } else {
+        errorEl.textContent = data.error || "Failed to send OTP.";
+        errorEl.style.display = "block";
+      }
+    }
+
+    async function verifyOtp() {
+      const otp = document.getElementById('otpCode').value;
+      const errorEl = document.getElementById('otpError');
+      
+      if (!otp) return;
+      
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ otp })
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        window.location.href = '/dashboard';
+      } else {
+        errorEl.textContent = data.error || "Invalid OTP.";
+        errorEl.style.display = "block";
+      }
+    }
+
+    async function handleGoogleLogin(response) {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token: response.credential })
+      });
+      if (res.ok) {
+        window.location.href = '/dashboard';
+      } else {
+        document.getElementById('contactError').textContent = "Google login failed.";
+        document.getElementById('contactError').style.display = "block";
+      }
+    }
+  </script>
+</body>
+</html>
