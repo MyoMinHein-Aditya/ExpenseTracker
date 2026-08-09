@@ -211,7 +211,7 @@ def home():
 def login():
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
-    return render_template("login.html")
+    return render_template("login.html", google_client_id=GOOGLE_CLIENT_ID)
 
 @app.route("/logout")
 def logout():
