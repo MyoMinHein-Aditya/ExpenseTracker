@@ -205,7 +205,8 @@
   <div class="header-right">
     <div class="month-badge" id="monthBadge"></div>
     <div class="month-tabs" id="monthTabs"></div>
-    <a class="export-btn" id="exportBtn" href="#" onclick="exportExcel(event)">⬇ Export Excel</a>
+    <a class="export-btn" id="exportBtn" href="#" onclick="exportExcel(event)">⬇ Export</a>
+    <a class="export-btn" href="/logout" style="border-color:var(--red);color:var(--red);">Logout</a>
   </div>
 
 </div>
@@ -325,7 +326,9 @@
   }
 
   async function fetchMonths() {
-    const d = await fetch('/api/months').then(r => r.json());
+    const res = await fetch('/api/months');
+    if(res.status === 401) { window.location.href = '/login'; return []; }
+    const d = await res.json();
     return d.months || [];
   }
 
@@ -343,7 +346,9 @@
   }
 
   async function loadBalance() {
-    const d = await fetch('/api/balance').then(r=>r.json());
+    const res = await fetch('/api/balance');
+    if(res.status === 401) return window.location.href = '/login';
+    const d = await res.json();
 
     const el = document.getElementById('balanceDisplay');
     el.textContent = fmt(d.balance);
@@ -357,7 +362,9 @@
   }
 
   async function loadTransactions() {
-    const d = await fetch(`/api/transactions?month=${currentMonth}`).then(r=>r.json());
+    const res = await fetch(`/api/transactions?month=${currentMonth}`);
+    if(res.status === 401) return window.location.href = '/login';
+    const d = await res.json();
     // Update month summary card
     document.getElementById('msAdded').textContent = '+' + fmt(d.total_added);
     document.getElementById('msSpent').textContent = '−' + fmt(d.total_spent);
