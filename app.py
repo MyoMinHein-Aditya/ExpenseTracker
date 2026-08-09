@@ -11,7 +11,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24).hex()  # Needed for session management
+app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24).hex())  # Needed for session management
 DB = "expenses.db"
 
 # Google Auth Setup (Placeholders for user to configure if needed)
