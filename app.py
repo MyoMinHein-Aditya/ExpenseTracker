@@ -46,6 +46,8 @@ class DatabaseManager:
             )""")
             conn.commit()
 
+DatabaseManager.init_db()
+
 class UserManager:
     
     @staticmethod
